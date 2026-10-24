@@ -3,9 +3,9 @@
     "prompt_tokens": {
       "context": 249,
       "stable": 1935,
-      "volatile": 1528
+      "volatile": 1813
     },
-    "tool_tokens": 11490,
+    "tool_tokens": 11468,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -36,9 +36,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 1445,
-      "volatile": 1528
+      "volatile": 1813
     },
-    "tool_tokens": 11490,
+    "tool_tokens": 11468,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -69,9 +69,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 1866,
-      "volatile": 1527
+      "volatile": 1811
     },
-    "tool_tokens": 11490,
+    "tool_tokens": 11468,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -102,9 +102,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 2640,
-      "volatile": 1524
+      "volatile": 1809
     },
-    "tool_tokens": 11646,
+    "tool_tokens": 11624,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -135,9 +135,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 1445,
-      "volatile": 1528
+      "volatile": 1813
     },
-    "tool_tokens": 11490,
+    "tool_tokens": 11468,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -168,9 +168,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 1317,
-      "volatile": 1528
+      "volatile": 1813
     },
-    "tool_tokens": 11490,
+    "tool_tokens": 11468,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -201,9 +201,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 1579,
-      "volatile": 1529
+      "volatile": 1814
     },
-    "tool_tokens": 12156,
+    "tool_tokens": 12124,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -235,9 +235,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 1349,
-      "volatile": 1529
+      "volatile": 1814
     },
-    "tool_tokens": 11490,
+    "tool_tokens": 11468,
     "tools": [
       "browser_cdp",
       "browser_dialog",
@@ -268,9 +268,9 @@
     "prompt_tokens": {
       "context": 0,
       "stable": 1382,
-      "volatile": 1529
+      "volatile": 1814
     },
-    "tool_tokens": 11490,
+    "tool_tokens": 11468,
     "tools": [
       "browser_cdp",
       "browser_dialog",
