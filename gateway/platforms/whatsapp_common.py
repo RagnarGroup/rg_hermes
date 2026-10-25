@@ -124,9 +124,40 @@ class WhatsAppBehaviorMixin(OwnAccessPolicyMixin):
 
     def _select_dm_allowlist(self, extra: dict[str, Any], env_keys, read_env) -> Any:
         """Raw DM allowlist; records the winning source in ``_dm_allowlist_source`` so live DM checks keep
-        the same precedence."""
+        the same precedence. ``allow_from_file`` outranks every other source: an external process owns
+        the list and rewrites the file, and each live check re-reads it when its signature changes."""
+        if extra.get("allow_from_file"):
+            self._dm_allowlist_source = "file"
+            self._allow_from_file = Path(str(extra["allow_from_file"])).expanduser()
+            self._allow_from_file_sig = None
+            self._allow_from_file_ids: set[str] = set()
+            return sorted(self._read_allow_from_file())
         self._dm_allowlist_source, raw = self._select_allowlist(extra, ("allow_from", "allowFrom"), env_keys, read_env)
         return raw
+
+    def _read_allow_from_file(self) -> set[str]:
+        """``{"allowed_users": [...]}`` re-parsed only when the file signature changes. A file that never
+        existed means nobody; one that turns unreadable later keeps the last good list, so a botched
+        rewrite cannot lock every user out."""
+        from utils import file_signature
+        try:
+            sig = file_signature(self._allow_from_file.stat())
+            if sig == self._allow_from_file_sig:
+                return self._allow_from_file_ids
+            data = json.loads(self._allow_from_file.read_text(encoding="utf-8-sig"))
+            ids = data["allowed_users"]
+            if not isinstance(ids, list) or not all(isinstance(entry, str) for entry in ids):
+                raise ValueError("allowed_users must be a list of strings")
+        except FileNotFoundError:
+            if self._allow_from_file_sig is not None:
+                logger.warning("[%s] allow_from_file %s disappeared; keeping the last list", self.name, self._allow_from_file)
+            return self._allow_from_file_ids
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            logger.warning("[%s] allow_from_file %s unreadable (%s); keeping the last list", self.name, self._allow_from_file, exc)
+            return self._allow_from_file_ids
+        self._allow_from_file_sig = sig
+        self._allow_from_file_ids = {entry.strip() for entry in ids if entry.strip()}
+        return self._allow_from_file_ids
 
     def _live_dm_allow_from(self) -> set[str]:
         """Allowlist currently enforced for DM intake / strict DM auth. Env-seeded adapters re-read
@@ -134,6 +165,8 @@ class WhatsAppBehaviorMixin(OwnAccessPolicyMixin):
         revoke) means empty, not the construction snapshot. Config-seeded adapters keep the in-memory
         set (pairing revoke purges it in place) — a stale env value must not broaden access."""
         source = getattr(self, "_dm_allowlist_source", None)
+        if source == "file":
+            return set(self._read_allow_from_file())
         if isinstance(source, str) and source != "config":
             # Scoped read: under multiplex os.environ is the DEFAULT profile's allowlist. None = key
             # absent (revoked) → empty, never the construction snapshot.

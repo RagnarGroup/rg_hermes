@@ -1240,7 +1240,11 @@ _YAML_BRIDGE = (  # (yaml key, env var, kind) for apply_yaml_bridge
 def _apply_yaml_config(yaml_cfg: dict, whatsapp_cfg: dict) -> dict | None:
     """``apply_yaml_config_fn`` (#24849): config.yaml whatsapp: keys → WHATSAPP_* env (env wins; skipped under
     a multiplexed secondary profile's scope, #80099) + ``PlatformConfig.extra`` (extra-first readers)."""
-    return _apply_yaml_bridge(whatsapp_cfg, _YAML_BRIDGE)
+    seeded = _apply_yaml_bridge(whatsapp_cfg, _YAML_BRIDGE) or {}
+    # Config-only on purpose: the path is not a secret, so it never becomes an env var.
+    if whatsapp_cfg.get("allow_from_file"):
+        seeded["allow_from_file"] = str(whatsapp_cfg["allow_from_file"])
+    return seeded or None
 
 
 
