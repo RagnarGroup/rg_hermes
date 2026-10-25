@@ -84,3 +84,28 @@ async def test_mcp_endpoint():
             data = await (await cli.get("/api/mcp", headers={"Authorization": "Bearer k"})).json()
     assert data["servers"][0]["name"] == "google"
     assert data["apps"][1] == {"app": "google", "conectada": True}
+
+
+@pytest.mark.asyncio
+async def test_commands_user_scope_reads_the_routed_profile_config():
+    from types import SimpleNamespace
+
+    from gateway.config import GatewayConfig
+    from gateway.platforms.api_server import _api_request_profile
+
+    adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": "k", "user_allowed_commands": ["new"]}))
+    cliente = GatewayConfig(platforms={Platform.API_SERVER: PlatformConfig(
+        enabled=True, extra={"user_allowed_commands": ["retry", "sessions"]})})
+    adapter.gateway_runner = SimpleNamespace(_primary_profile_name="default", _profile_configs={"cliente-4": cliente})
+
+    def nombres(perfil):
+        token = _api_request_profile.set(perfil)
+        try:
+            return {"retry", "sessions", "new"} & set(adapter._request_profile_api_extra().get("user_allowed_commands", []))
+        finally:
+            _api_request_profile.reset(token)
+
+    assert nombres(None) == {"new"}
+    assert nombres("default") == {"new"}
+    assert nombres("cliente-4") == {"retry", "sessions"}
+    assert nombres("cliente-9") == set()

@@ -21,6 +21,20 @@ logger = logging.getLogger(__name__)
 
 
 class CatalogRoutesMixin:
+    def _request_profile_api_extra(self) -> dict:
+        """``api_server`` extra of the profile this request is for. Under multiplex the default's
+        adapter serves every ``/p/<profile>/`` itself, so its own ``config`` is the wrong one there;
+        a served profile without a cached config or api_server block gets ``{}`` (floor only)."""
+        from gateway.config import Platform
+        from gateway.platforms.api_server import _api_request_profile
+        profile = _api_request_profile.get()
+        runner = getattr(self, "gateway_runner", None)
+        if not profile or profile == (getattr(runner, "_primary_profile_name", None) or "default"):
+            return getattr(self.config, "extra", None) or {}
+        config = (getattr(runner, "_profile_configs", None) or {}).get(profile)
+        platform_config = config.platforms.get(Platform.API_SERVER) if config is not None else None
+        return (getattr(platform_config, "extra", None) or {}) if platform_config is not None else {}
+
     @_require_auth
     async def _handle_commands(self, request: web.Request) -> web.Response:
         from gateway.platforms.api_server import _error_response
@@ -32,7 +46,7 @@ class CatalogRoutesMixin:
             from hermes_cli.commands import gateway_cmds_entries
             allowed = None
             if scope == "user":
-                policy = policy_from_extra(getattr(self.config, "extra", None) or {}, "dm")
+                policy = policy_from_extra(self._request_profile_api_extra(), "dm")
                 allowed = {*_ALWAYS_ALLOWED_FOR_USERS, *policy.user_allowed_commands}
             data = gateway_cmds_entries(allowed)
         except Exception:
