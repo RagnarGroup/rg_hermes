@@ -15,7 +15,9 @@ def _socket_is_dead(sock) -> bool:
     import socket as _socket
     try:
         sock.setblocking(False)
-        return sock.recv(1, _socket.MSG_PEEK | _socket.MSG_DONTWAIT) == b""
+        # MSG_DONTWAIT is POSIX-only (absent on Windows, where the AttributeError silently disabled
+        # the whole sweep); the socket is already non-blocking, so the flag only adds belt-and-braces.
+        return sock.recv(1, _socket.MSG_PEEK | getattr(_socket, "MSG_DONTWAIT", 0)) == b""
     except BlockingIOError:
         return False  # no data available: socket is healthy
     except OSError:

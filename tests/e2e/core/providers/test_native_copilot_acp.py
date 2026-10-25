@@ -48,6 +48,7 @@ from tests.e2e.core.providers._native_helpers import (
     tool_calls_of,
     wait_until,
 )
+pytest.importorskip("fcntl", reason="the fake provider locks its journal with fcntl.flock (POSIX only)")
 from tests.fakes.providers import copilot_acp as acp
 
 pytest.importorskip("acp.schema", reason="the fake validates against the agent-client-protocol package (acp extra)")

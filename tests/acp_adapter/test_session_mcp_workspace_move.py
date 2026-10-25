@@ -3,6 +3,7 @@
 Stdio editor servers run in the session's cwd. A viewed session keeps them connected between
 turns, so the move must respawn them in the new folder rather than keep running them in the old one.
 """
+import json
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -25,11 +26,11 @@ def test_workspace_move_respawns_held_stdio_servers_in_the_new_folder(server_spe
     try:
         with policy_scope(before, authority=authority):
             name = next(n for n in registry.get_all_tool_names() if n.startswith('mcp__'))
-            assert str(old.resolve()) in registry.dispatch(name, {})
+            assert str(old.resolve()) in json.loads(registry.dispatch(name, {}))["result"]
         # What a committed ``workspace`` mutation freezes: the same editor selection, a new cwd.
         moved = replace(before, cwd=str(new))
         with policy_scope(moved, authority=authority):
-            result = registry.dispatch(name, {})
+            result = json.loads(registry.dispatch(name, {}))["result"]
         assert str(new.resolve()) in result and str(old.resolve()) not in result
     finally:
         live.subscribers.clear()

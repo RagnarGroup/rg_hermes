@@ -175,7 +175,7 @@ class DiscordMediaMixin:
         try:
             import discord as _discord_mod
             import io as _io
-            from urllib.parse import unquote as _unquote
+            from urllib.request import url2pathname
         except Exception:  # pragma: no cover
             return await super().send_multiple_images(chat_id, images, metadata, human_delay)
         try:
@@ -201,7 +201,9 @@ class DiscordMediaMixin:
                     if alt_text:
                         captions.append(alt_text)
                     if image_url.startswith("file://"):
-                        local_path = _unquote(image_url[7:])
+                        # url2pathname, as BasePlatformAdapter does: a bare unquote turns
+                        # file:///C:/x into /C:/x on Windows, which never exists.
+                        local_path = url2pathname(image_url[7:])
                         if not os.path.exists(local_path):
                             logger.warning("[%s] Skipping missing image: %s", self.name, local_path)
                             continue
