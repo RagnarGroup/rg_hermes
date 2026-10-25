@@ -42,6 +42,11 @@ approval:
     second_one: "{count} sekonde"
     second_other: "{count} sekondes"
 gateway:
+  cmds:
+    header: "📋 **Your commands**"
+    role_admin: "You are an admin: every command is available."
+    role_user: "These are the commands available to you."
+    hint: "\nYou can also just ask me in plain words."
   approval_expired: "⚠️ Goedkeuring het verval (die agent wag nie meer nie). Vra die agent om weer te probeer."
   draining: "⏳ Wag vir {count} aktiewe agent(e) voor herbegin..."
   goal_cleared: "✓ Doelwit verwyder."
@@ -1469,6 +1474,8 @@ platform:
     prompt_other: "✏️ Ander (tik antwoord)"
     prompt_expired: ⌛ Daardie navraag wag nie meer op 'n antwoord nie. Stuur jou antwoord as 'n gewone boodskap.
 slash:
+  cmds:
+    description: "List the commands you can run here, grouped by category"
   approve:
     description: "Keur 'n hangende gevaarlike opdrag goed"
   bg:

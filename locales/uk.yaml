@@ -42,6 +42,11 @@ approval:
     second_one: "{count} секунда"
     second_other: "{count} секунд"
 gateway:
+  cmds:
+    header: "📋 **Your commands**"
+    role_admin: "You are an admin: every command is available."
+    role_user: "These are the commands available to you."
+    hint: "\nYou can also just ask me in plain words."
   approval_expired: "⚠️ Час схвалення минув (агент більше не очікує). Попросіть агента спробувати ще раз."
   draining: "⏳ Очікування завершення {count} активних агент(ів) перед перезапуском..."
   goal_cleared: "✓ Ціль очищено."
@@ -1469,6 +1474,8 @@ platform:
     prompt_other: "✏️ Інше (ввести відповідь)"
     prompt_expired: ⌛ Цей запит більше не очікує відповіді. Надішліть відповідь звичайним повідомленням.
 slash:
+  cmds:
+    description: "List the commands you can run here, grouped by category"
   approve:
     description: "Схвалити небезпечну команду, що очікує"
   bg:

@@ -42,6 +42,11 @@ approval:
     second_one: "{count} segundo"
     second_other: "{count} segundos"
 gateway:
+  cmds:
+    header: "📋 **Your commands**"
+    role_admin: "You are an admin: every command is available."
+    role_user: "These are the commands available to you."
+    hint: "\nYou can also just ask me in plain words."
   approval_expired: "⚠️ A aprovação expirou (o agente já não está à espera). Peça ao agente para tentar novamente."
   draining: "⏳ A aguardar que {count} agente(s) ativo(s) terminem antes de reiniciar..."
   goal_cleared: "✓ Objetivo removido."
@@ -1469,6 +1474,8 @@ platform:
     prompt_other: "✏️ Outro (digitar resposta)"
     prompt_expired: ⌛ Essa solicitação não está mais aguardando resposta. Envie sua resposta como uma mensagem normal.
 slash:
+  cmds:
+    description: "List the commands you can run here, grouped by category"
   approve:
     description: "Aprovar um comando perigoso pendente"
   bg:

@@ -312,6 +312,8 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("commands", "Browse all commands and skills (paginated)", "Info",
                gateway_only=True, args_hint="[page]", busy_policy="dispatch",
                execute="gateway_commands"),
+    CommandDef("cmds", "List the commands you can run here, grouped by category", "Info",
+               gateway_only=True, busy_policy="dispatch"),
     CommandDef("help", "Show available commands (/help skills lists skill commands, /help <text> filters)", "Info", busy_policy="dispatch",
                execute="gateway_help", args_hint="[skills|<filter>]"),
     CommandDef("palette", "Open the fuzzy command palette (also Ctrl+P)", "Info",
@@ -547,6 +549,25 @@ def gateway_help_lines(allowed: Optional[Iterable[str]] = None) -> list[str]:
                        if not (a.replace("-", "_") == cmd.name.replace("-", "_") and a != cmd.name)]
         alias_note = t("slash.shared.alias_note", aliases=", ".join(alias_parts)) if alias_parts else ""
         lines.append(f"`/{cmd.name}{args}` -- {cmd.describe()}{alias_note}")
+    return lines
+
+
+def gateway_cmds_lines(allowed: Optional[Iterable[str]] = None) -> list[str]:
+    """/cmds catalog: one compact line per command the caller may run, grouped under localized
+    category headers in registry order (``allowed`` restricts it like ``gateway_help_lines``)."""
+    overrides = _resolve_config_gates()
+    allowed_set = None if allowed is None else set(allowed)
+    groups: dict[str, list[str]] = {}
+    for cmd in COMMAND_REGISTRY:
+        if cmd.name == "start" or not _is_gateway_available(cmd, overrides):
+            continue
+        if allowed_set is not None and cmd.name not in allowed_set:
+            continue
+        groups.setdefault(cmd.category, []).append(f"/{cmd.name} — {cmd.describe()}")
+    lines: list[str] = []
+    for category, entries in groups.items():
+        lines.append(f"\n**{category_label(category)}**")
+        lines.extend(entries)
     return lines
 
 

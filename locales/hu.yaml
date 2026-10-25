@@ -42,6 +42,11 @@ approval:
     second_one: "{count} másodperc"
     second_other: "{count} másodperc"
 gateway:
+  cmds:
+    header: "📋 **Your commands**"
+    role_admin: "You are an admin: every command is available."
+    role_user: "These are the commands available to you."
+    hint: "\nYou can also just ask me in plain words."
   approval_expired: "⚠️ A jóváhagyás lejárt (az ügynök már nem vár). Kérd meg az ügynököt, hogy próbálja újra."
   draining: "⏳ {count} aktív ügynök befejezésére várunk az újraindítás előtt..."
   goal_cleared: "✓ A cél törölve."
@@ -1486,6 +1491,8 @@ platform:
     prompt_other: "✏️ Egyéb (írd be a választ)"
     prompt_expired: ⌛ Ez a kérdés már nem vár válaszra. Küldd el a válaszodat normál üzenetként.
 slash:
+  cmds:
+    description: "List the commands you can run here, grouped by category"
   approve:
     description: "Függőben lévő veszélyes parancs jóváhagyása"
   bg:

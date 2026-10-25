@@ -42,6 +42,11 @@ approval:
     second_one: "{count}초"
     second_other: "{count}초"
 gateway:
+  cmds:
+    header: "📋 **Your commands**"
+    role_admin: "You are an admin: every command is available."
+    role_user: "These are the commands available to you."
+    hint: "\nYou can also just ask me in plain words."
   approval_expired: "⚠️ 승인이 만료되었습니다 (에이전트가 더 이상 대기하지 않습니다). 에이전트에게 다시 시도하도록 요청하세요."
   draining: "⏳ 재시작 전에 활성 에이전트 {count}명을 정리하는 중..."
   goal_cleared: "✓ 목표가 삭제되었습니다."
@@ -1469,6 +1474,8 @@ platform:
     prompt_other: "✏️ 기타 (직접 입력)"
     prompt_expired: ⌛ 이 프롬프트는 더 이상 답변을 기다리지 않아요. 일반 메시지로 답변을 보내 주세요.
 slash:
+  cmds:
+    description: "List the commands you can run here, grouped by category"
   approve:
     description: "대기 중인 위험 명령 승인"
   bg:

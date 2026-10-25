@@ -42,6 +42,11 @@ approval:
     second_one: "{count} 秒"
     second_other: "{count} 秒"
 gateway:
+  cmds:
+    header: "📋 **Your commands**"
+    role_admin: "You are an admin: every command is available."
+    role_user: "These are the commands available to you."
+    hint: "\nYou can also just ask me in plain words."
   approval_expired: "⚠️ 批准已逾期（代理不再等待）。請讓代理重試。"
   draining: "⏳ 正在等待 {count} 個活躍代理結束後重新啟動..."
   goal_cleared: "✓ 目標已清除。"
@@ -1469,6 +1474,8 @@ platform:
     prompt_other: "✏️ 其他（輸入答案）"
     prompt_expired: ⌛ 該提示已不再等待回答。請以一般訊息傳送您的回覆。
 slash:
+  cmds:
+    description: "List the commands you can run here, grouped by category"
   approve:
     description: "批准待處理的危險指令"
   bg:

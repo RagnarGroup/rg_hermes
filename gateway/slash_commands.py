@@ -343,7 +343,7 @@ class GatewaySlashCommandsMixin(
             return head + t("gateway.whoami.tier_admin")
         # Non-admin: floor first (mirrors slash_access._ALWAYS_ALLOWED_FOR_USERS), then operator
         # additions, deduped in order.
-        runnable = list(dict.fromkeys(["help", "whoami"] + sorted(policy.user_allowed_commands)))
+        runnable = list(dict.fromkeys(["help", "whoami", "cmds"] + sorted(policy.user_allowed_commands)))
         runnable_str = ", ".join(f"/{c}" for c in runnable) if runnable else t("gateway.shared.none_marker")
         return head + t("gateway.whoami.tier_user", commands=runnable_str)
 
@@ -612,19 +612,27 @@ class GatewaySlashCommandsMixin(
         """``allowed_commands`` for /help and /commands when the caller is a gated non-admin:
         the slash-access floor + ``user_allowed_commands`` (mirrors /whoami), so the catalog
         never advertises commands ``_check_slash_access`` would refuse. Admins / ungated -> {}."""
-        from gateway.slash_access import policy_for_runner_source
+        from gateway.slash_access import _ALWAYS_ALLOWED_FOR_USERS, policy_for_runner_source
         source = event.source
         # Partially-constructed runners (``GatewayRunner.__new__`` in tests) have no ``config``;
         # policy_for_source treats None as ungated.
         policy = policy_for_runner_source(self, source)
         if policy.enabled and not policy.is_admin(source.user_id if source else None):
-            return {"allowed_commands": {"help", "whoami", *policy.user_allowed_commands}}
+            return {"allowed_commands": {*_ALWAYS_ALLOWED_FOR_USERS, *policy.user_allowed_commands}}
         return {}
 
     async def _handle_help_command(self, event: MessageEvent) -> str:
         """Handle /help command - list available commands."""
         return self._telegramized_command_reply(
             event, _execute("help", options=self._catalog_options(event)).text)
+
+    async def _handle_cmds_command(self, event: MessageEvent) -> str:
+        from hermes_cli.commands import gateway_cmds_lines
+        options = self._catalog_options(event)
+        allowed = options.get("allowed_commands")
+        role = t("gateway.cmds.role_admin") if allowed is None else t("gateway.cmds.role_user")
+        lines = [t("gateway.cmds.header"), role, *gateway_cmds_lines(allowed), t("gateway.cmds.hint")]
+        return self._telegramized_command_reply(event, "\n".join(lines))
 
     async def _handle_commands_command(self, event: MessageEvent) -> str:
         # Page size is a surface parameter (Telegram messages are shorter).

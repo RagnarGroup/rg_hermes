@@ -4,7 +4,10 @@ A second axis beside ``allow_from``: of the users allowed to talk to the gateway
 which slash commands. Two lists per scope (DM vs group, mirroring ``allow_from`` /
 ``group_allow_from``): ``allow_admin_from`` (user IDs that get every registered command, built-in
 and plugin) and ``user_allowed_commands`` (names non-admins may run; empty/unset -> only the
-``_ALWAYS_ALLOWED_FOR_USERS`` floor). No ``allow_admin_from`` for a scope => gating disabled there,
+``_ALWAYS_ALLOWED_FOR_USERS`` floor). ``allow_admin_from_file`` / ``group_allow_admin_from_file`` add the
+``admins`` list of a JSON file an external process rewrites (re-read when its signature changes;
+an unreadable rewrite keeps the last good list) and gate the scope even while that list is empty.
+WhatsApp admins match across phone/LID aliases. No admin source for a scope => gating disabled there,
 so existing installs are unaffected until an operator lists an admin. Applied at the dispatch
 site in ``gateway/run.py`` via the live registry; never affects plain chat.
 """
@@ -12,19 +15,27 @@ site in ``gateway/run.py`` via the live registry; never affects plain chat.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import logging
+from pathlib import Path
 from typing import Any, Callable, FrozenSet, Iterable, Optional
+
+logger = logging.getLogger(__name__)
 
 # Read-only floor every allowed user keeps under gating, so a non-admin can still discover what
 # they can do. ``user_allowed_commands`` only adds to this set, never restricts it.
-_ALWAYS_ALLOWED_FOR_USERS: frozenset[str] = frozenset({"help", "whoami"})
+_ALWAYS_ALLOWED_FOR_USERS: frozenset[str] = frozenset({"help", "whoami", "cmds"})
 
 _DM_CHAT_TYPES = frozenset({"dm", "direct", "private", ""})
 
-# scope -> (admin list key, user command list key)
+# scope -> (admin list key, user command list key, admin file key)
 _SCOPE_KEYS = {
-    "dm": ("allow_admin_from", "user_allowed_commands"),
-    "group": ("group_allow_admin_from", "group_user_allowed_commands"),
+    "dm": ("allow_admin_from", "user_allowed_commands", "allow_admin_from_file"),
+    "group": ("group_allow_admin_from", "group_user_allowed_commands", "group_allow_admin_from_file"),
 }
+
+# path -> (signature, admins) of the last good read of each admin file.
+_ADMIN_FILE_CACHE: dict[str, tuple[Any, frozenset[str]]] = {}
 
 
 @dataclass(frozen=True)
@@ -34,12 +45,17 @@ class SlashAccessPolicy:
     enabled: bool  # gating active for this scope?
     admin_user_ids: frozenset[str]
     user_allowed_commands: frozenset[str]
+    aliases: Optional[Callable[[str], set[str]]] = None  # platform identity aliases (WhatsApp LID/phone)
 
     def is_admin(self, user_id: Optional[str]) -> bool:
         # Gating disabled -> everyone is admin so callers can use is_admin/can_run uniformly.
         if not self.enabled:
             return True
-        return bool(user_id) and str(user_id) in self.admin_user_ids
+        if not user_id:
+            return False
+        if str(user_id) in self.admin_user_ids:
+            return True
+        return self.aliases is not None and not self.admin_user_ids.isdisjoint(self.aliases(str(user_id)))
 
     def can_run(self, user_id: Optional[str], canonical_cmd: str) -> bool:
         if self.is_admin(user_id):
@@ -83,18 +99,61 @@ def _coerce_command_list(raw: Any) -> frozenset[str]:
     return _coerce_list(raw, lambda s: s.lstrip("/").lower())
 
 
-def policy_from_extra(extra: dict, scope: str) -> SlashAccessPolicy:
+def _read_admin_file(raw_path: Any) -> frozenset[str]:
+    """``{"admins": [...]}`` from ``raw_path``; a missing or unreadable file keeps the last good list
+    (empty when there never was one)."""
+    from utils import file_signature
+    path = Path(str(raw_path)).expanduser()
+    key = str(path)
+    sig, admins = _ADMIN_FILE_CACHE.get(key, (None, frozenset()))
+    try:
+        current = file_signature(path.stat())
+        if current == sig:
+            return admins
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+        entries = data["admins"]
+        if not isinstance(entries, list) or not all(isinstance(entry, str) for entry in entries):
+            raise ValueError("admins must be a list of strings")
+    except FileNotFoundError:
+        return admins
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        logger.warning("slash access: admin file %s unreadable (%s); keeping the last list", path, exc)
+        return admins
+    admins = _coerce_id_list(entries)
+    _ADMIN_FILE_CACHE[key] = (current, admins)
+    return admins
+
+
+def _whatsapp_aliases(user_id: str) -> set[str]:
+    from gateway.whatsapp_identity import expand_whatsapp_aliases
+    return expand_whatsapp_aliases(user_id)
+
+
+def _normalize_whatsapp_ids(ids: frozenset[str]) -> frozenset[str]:
+    from gateway.whatsapp_identity import normalize_whatsapp_identifier
+    return ids | {normalize_whatsapp_identifier(i) for i in ids if normalize_whatsapp_identifier(i)}
+
+
+def policy_from_extra(extra: dict, scope: str, platform: Optional[str] = None) -> SlashAccessPolicy:
     """Build a policy from a platform's ``extra`` dict for one scope.
 
     DM scope falls back to ``group_user_allowed_commands`` ONLY for the command list, and only
     when DM didn't set its own. Admin lists are NOT cross-scope: a DM admin is not a group admin.
     """
-    admin_key, cmd_key = _SCOPE_KEYS.get(scope, _SCOPE_KEYS["dm"])
+    admin_key, cmd_key, file_key = _SCOPE_KEYS.get(scope, _SCOPE_KEYS["dm"])
     admin_ids = _coerce_id_list(extra.get(admin_key))
+    admin_file = extra.get(file_key)
+    if admin_file:
+        admin_ids |= _read_admin_file(admin_file)
     cmds = _coerce_command_list(extra.get(cmd_key))
     if scope == "dm" and not cmds:
         cmds = _coerce_command_list(extra.get("group_user_allowed_commands"))
-    return SlashAccessPolicy(enabled=bool(admin_ids), admin_user_ids=admin_ids, user_allowed_commands=cmds)
+    aliases = None
+    if platform == "whatsapp":
+        admin_ids = _normalize_whatsapp_ids(admin_ids)
+        aliases = _whatsapp_aliases
+    return SlashAccessPolicy(enabled=bool(admin_ids) or bool(admin_file), admin_user_ids=admin_ids,
+                             user_allowed_commands=cmds, aliases=aliases)
 
 
 def policy_for_source(gateway_config: Any, source: Any) -> SlashAccessPolicy:
@@ -116,17 +175,18 @@ def policy_for_source(gateway_config: Any, source: Any) -> SlashAccessPolicy:
     extra = getattr(platform_config, "extra", None)
     if not isinstance(extra, dict):
         extra = platform_config if isinstance(platform_config, dict) else {}
+    platform = getattr(source.platform, "value", source.platform)
     chat_type = getattr(source, "chat_type", None)
     normalized = str(chat_type).strip().lower() if chat_type is not None else ""
     if normalized:
         scope = "dm" if normalized in _DM_CHAT_TYPES else "group"
-        return policy_from_extra(extra, scope)
+        return policy_from_extra(extra, scope, platform)
     # Blank/None chat_type is ambiguous (relay frames may send "" / null; restored rows keep a
     # stored empty value verbatim). _DM_CHAT_TYPES lists "" but a truthiness guard made it
     # unreachable: resolve to whichever scope is gated so an ambiguous source never lands in an
     # ungated allow-everything scope; keep the historical group scope on a tie.
-    dm_policy = policy_from_extra(extra, "dm")
-    group_policy = policy_from_extra(extra, "group")
+    dm_policy = policy_from_extra(extra, "dm", platform)
+    group_policy = policy_from_extra(extra, "group", platform)
     return dm_policy if dm_policy.enabled and not group_policy.enabled else group_policy
 
 

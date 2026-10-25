@@ -42,6 +42,11 @@ approval:
     second_one: "{count} ثانية"
     second_other: "{count} ثوانٍ"
 gateway:
+  cmds:
+    header: "📋 **Your commands**"
+    role_admin: "You are an admin: every command is available."
+    role_user: "These are the commands available to you."
+    hint: "\nYou can also just ask me in plain words."
   approval_expired: "⚠️ انتهت صلاحية الموافقة (لم يعد الوكيل ينتظر). اطلب من الوكيل المحاولة مرة أخرى."
   draining: "⏳ جارٍ إنهاء {count} وكيل نشط قبل إعادة التشغيل..."
   goal_cleared: "✓ تم مسح الهدف."
@@ -1469,6 +1474,8 @@ platform:
     prompt_other: "✏️ غير ذلك (اكتب الإجابة)"
     prompt_expired: ⌛ لم يعد هذا الطلب ينتظر إجابة. أرسل ردك كرسالة عادية.
 slash:
+  cmds:
+    description: "List the commands you can run here, grouped by category"
   approve:
     description: "الموافقة على أمر خطير قيد الانتظار"
   bg:
