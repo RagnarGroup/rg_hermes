@@ -108,7 +108,12 @@ class GatewayProfileReconcileMixin:
         (every gateway), then rescan ``profiles/`` when multiplexing (creators signal the control
         socket for an immediate rescan); a gateway standalone only because the host had one profile
         starts multiplexing here once a second one exists."""
+        from gateway.profile_routes_file import refresh_profile_routes
         while self._running:
+            try:
+                refresh_profile_routes(self)
+            except Exception:
+                logger.warning("Profile routes file reload failed; keeping the current routes", exc_info=True)
             await asyncio.sleep(interval)
             if not self._running:
                 return
