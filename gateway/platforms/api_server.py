@@ -69,7 +69,8 @@ _CAPABILITY_ENDPOINTS = (
     ("run_steer", ("POST", "/v1/runs/{run_id}/steer")),
     ("run_unknown_resolution", ("POST", "/v1/runs/{run_id}/resolve-unknown", "run_unknown_resolution")),
     ("run_stop", ("POST", "/v1/runs/{run_id}/stop")), ("skills", ("GET", "/v1/skills")),
-    ("toolsets", ("GET", "/v1/toolsets")), ("sessions", ("GET", "/api/sessions")),
+    ("toolsets", ("GET", "/v1/toolsets")), ("commands", ("GET", "/api/commands")),
+    ("mcp", ("GET", "/api/mcp")), ("sessions", ("GET", "/api/sessions")),
     ("session_create", ("POST", "/api/sessions")),
     ("session", ("GET", "/api/sessions/{session_id}")),
     ("session_update", ("PATCH", "/api/sessions/{session_id}")),
@@ -115,6 +116,8 @@ from gateway.display_config import resolve_display_setting
 from gateway.platforms import api_server_room_dispatch as _room_dispatch
 from gateway.platforms import api_server_room_grants as _room_grants
 from gateway.platforms import api_server_runs as _api_runs
+from gateway.platforms.api_server_auth import _require_auth
+from gateway.platforms.api_server_catalog_routes import CatalogRoutesMixin
 from gateway.platforms.api_server_openai_routes import OpenAICompatRoutesMixin
 from gateway.platforms.api_server_memory_sessions import ApiServerMemorySessions
 from gateway.platforms.api_server_bot_chat import reset_local_title_owner
@@ -795,17 +798,6 @@ def _release_pending_api_work(adapter, reservation: dict[str, bool]) -> None:
         adapter._pending_agent_requests = max(0, adapter._pending_agent_requests - 1)
 
 
-def _require_auth(handler):
-    """Run ``self._check_auth`` first and return its 401 instead of the handler."""
-    @wraps(handler)
-    async def _wrapped(self, request, *args, **kwargs):
-        auth_err = self._check_auth(request)
-        if auth_err:
-            return auth_err
-        return await handler(self, request, *args, **kwargs)
-    return _wrapped
-
-
 @contextmanager
 def _reserve_pending_api_work(adapter):
     """Keep externally-triggered background work visible across awaits; a handler may detach
@@ -1033,7 +1025,7 @@ def _run_route_delegate(name: str):
     return _handler
 
 
-class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
+class APIServerAdapter(OpenAICompatRoutesMixin, CatalogRoutesMixin, BasePlatformAdapter):
     """aiohttp server routing OpenAI-format requests through hermes-agent's AIAgent."""
 
     # Stateless request/response (``send()`` is a stub): async-delivery tools must not promise
@@ -1574,6 +1566,7 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             ("GET", "/v1/capabilities", self._handle_capabilities),
             ("GET", "/v1/skills", self._handle_skills),
             ("GET", "/v1/toolsets", self._handle_toolsets),
+            ("GET", "/api/commands", self._handle_commands), ("GET", "/api/mcp", self._handle_mcp),
             ("GET", "/api/sessions", self._handle_list_sessions),
             ("POST", "/api/sessions", self._handle_create_session),
             ("GET", "/api/sessions/{session_id}", self._handle_get_session),

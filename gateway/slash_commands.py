@@ -343,7 +343,7 @@ class GatewaySlashCommandsMixin(
             return head + t("gateway.whoami.tier_admin")
         # Non-admin: floor first (mirrors slash_access._ALWAYS_ALLOWED_FOR_USERS), then operator
         # additions, deduped in order.
-        runnable = list(dict.fromkeys(["help", "whoami", "cmds"] + sorted(policy.user_allowed_commands)))
+        runnable = list(dict.fromkeys(["help", "whoami", "cmds", "mcp"] + sorted(policy.user_allowed_commands)))
         runnable_str = ", ".join(f"/{c}" for c in runnable) if runnable else t("gateway.shared.none_marker")
         return head + t("gateway.whoami.tier_user", commands=runnable_str)
 
@@ -633,6 +633,10 @@ class GatewaySlashCommandsMixin(
         role = t("gateway.cmds.role_admin") if allowed is None else t("gateway.cmds.role_user")
         lines = [t("gateway.cmds.header"), role, *gateway_cmds_lines(allowed), t("gateway.cmds.hint")]
         return self._telegramized_command_reply(event, "\n".join(lines))
+
+    async def _handle_mcp_command(self, event: MessageEvent) -> str:
+        from gateway.mcp_summary import mcp_summary, mcp_summary_lines
+        return self._telegramized_command_reply(event, "\n".join(mcp_summary_lines(mcp_summary())))
 
     async def _handle_commands_command(self, event: MessageEvent) -> str:
         # Page size is a surface parameter (Telegram messages are shorter).

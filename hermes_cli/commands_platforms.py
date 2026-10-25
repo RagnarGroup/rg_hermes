@@ -389,7 +389,7 @@ _SLACK_VIA_HERMES_ONLY = frozenset({
     # One-time answer to the low-disk prompt; `/hermes autoprune on` reaches it.
     "autoprune",
     # Slack already has /help and /commands; `/hermes cmds` reaches it.
-    "cmds"})
+    "cmds", "mcp"})
 
 
 def _sanitize_slack_name(raw: str) -> str:

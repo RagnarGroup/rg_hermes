@@ -42,6 +42,20 @@ approval:
     second_one: "{count} segundo"
     second_other: "{count} segundos"
 gateway:
+  mcp_list:
+    header: "🔌 **Tus conexiones**"
+    none: "No hay servidores MCP configurados."
+    status_connected: "conectado"
+    status_lazy: "listo"
+    status_connecting: "conectando"
+    status_failed: "con error"
+    status_disabled: "desactivado"
+    status_configured: "sin conectar todavía"
+    tools: " ({count} herramientas)"
+    apps_header: "\n**Apps**"
+    app_connected: "✅ {app}"
+    app_missing: "➕ {app} (sin conectar)"
+    apps_hint: "\nPara conectar una app, pídemelo: \"conecta mi Google\"."
   cmds:
     header: "📋 **Tus comandos**"
     role_admin: "Eres administrador: tienes todos los comandos."
@@ -1474,6 +1488,8 @@ platform:
     prompt_other: "✏️ Otra (escribir respuesta)"
     prompt_expired: ⌛ Esa solicitud ya no espera respuesta. Envía tu respuesta como un mensaje normal.
 slash:
+  mcp:
+    description: "Muestra tus servidores MCP y apps conectadas"
   cmds:
     description: "Lista los comandos que puedes usar aquí, por categoría"
   approve:

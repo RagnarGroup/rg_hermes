@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Read-only floor every allowed user keeps under gating, so a non-admin can still discover what
 # they can do. ``user_allowed_commands`` only adds to this set, never restricts it.
-_ALWAYS_ALLOWED_FOR_USERS: frozenset[str] = frozenset({"help", "whoami", "cmds"})
+_ALWAYS_ALLOWED_FOR_USERS: frozenset[str] = frozenset({"help", "whoami", "cmds", "mcp"})
 
 _DM_CHAT_TYPES = frozenset({"dm", "direct", "private", ""})
 

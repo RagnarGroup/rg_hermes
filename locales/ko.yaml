@@ -42,6 +42,20 @@ approval:
     second_one: "{count}초"
     second_other: "{count}초"
 gateway:
+  mcp_list:
+    header: "🔌 **Your connections**"
+    none: "No MCP servers configured."
+    status_connected: "connected"
+    status_lazy: "ready"
+    status_connecting: "connecting"
+    status_failed: "failed"
+    status_disabled: "disabled"
+    status_configured: "not connected yet"
+    tools: " ({count} tools)"
+    apps_header: "\n**Apps**"
+    app_connected: "✅ {app}"
+    app_missing: "➕ {app} (not connected)"
+    apps_hint: "\nTo connect an app, just ask me: \"connect my Google\"."
   cmds:
     header: "📋 **Your commands**"
     role_admin: "You are an admin: every command is available."
@@ -1474,6 +1488,8 @@ platform:
     prompt_other: "✏️ 기타 (직접 입력)"
     prompt_expired: ⌛ 이 프롬프트는 더 이상 답변을 기다리지 않아요. 일반 메시지로 답변을 보내 주세요.
 slash:
+  mcp:
+    description: "Show your connected MCP servers and apps"
   cmds:
     description: "List the commands you can run here, grouped by category"
   approve:
