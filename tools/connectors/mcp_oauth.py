@@ -261,6 +261,30 @@ def _pinned_redirect_uri(cfg: dict) -> str:
     return f"http://{host}:{oauth['redirect_port']}/callback"
 
 
+def _relayed_redirect_uri(cfg: dict) -> str:
+    """An ``oauth.redirect_uri`` on https: a public page the provider redirects to, from which the
+    user relays the callback back (``deliver_relayed_callback``). No local receiver is bound."""
+    uri = str((cfg.get("oauth") or {}).get("redirect_uri") or "").strip()
+    return uri if urlparse(uri).scheme == "https" else ""
+
+
+def deliver_relayed_callback(hermes_home: str, query: str) -> Optional[str]:
+    """Hand a relayed redirect (``code``/``state`` query) to the pending flow of *hermes_home* whose
+    state it carries; return that flow's server name, or None when no flow of this home matches.
+    Flows of other homes are never tried, so a multiplexed profile cannot complete another's login."""
+    from tools.mcp_oauth import _parse_redirect_query
+
+    callback = _parse_redirect_query(query)
+    with _COMMIT_GUARD:
+        candidates = [(name, flow) for (home, name), flow in _ACTIVE.items() if home == hermes_home]
+    for name, flow in candidates:
+        if not secrets.compare_digest(str(getattr(flow, "expected_state", None) or ""), str(callback.get("state") or "")):
+            continue
+        flow.deliver_callback(**callback)
+        return name
+    return None
+
+
 def choose_callback_receiver(flow, cfg: dict, client_redirect_uri: Optional[str] = None):
     """Set the redirect consumed by the SDK and return the optional backend HTTP receiver."""
     if _pinned_loopback(cfg):
@@ -268,6 +292,10 @@ def choose_callback_receiver(flow, cfg: dict, client_redirect_uri: Optional[str]
         return None
     if client_redirect_uri is not None:
         flow.redirect_uri = _validate_client_redirect_uri(client_redirect_uri)
+        return None
+    relayed = _relayed_redirect_uri(cfg)
+    if relayed:
+        flow.redirect_uri = relayed
         return None
     httpd = _start_loopback_receiver(flow)
     flow.redirect_uri = f"http://127.0.0.1:{httpd.server_address[1]}/callback"
