@@ -8,12 +8,18 @@ the pending flow of this profile. Only remote (https) servers listed under
 ``pantera.mcp_permitidos`` can be connected, so a client can never install a local stdio server
 that would run on the host outside its sandbox.
 
+Some providers only accept loopback redirects (Canva). An app with ``retorno: pegar`` keeps the
+loopback redirect: the user's phone lands on an unreachable ``http://127.0.0.1:<port>/callback``
+page, copies that address and pastes it in the chat, and ``completar`` delivers it the same way.
+An app's ``oauth`` block (e.g. ``cimd: false``) is passed through to the MCP OAuth client.
+
 Config (profile ``config.yaml``)::
 
     pantera:
       oauth_redirect_uri: https://www.ragnargroup.app/conectar/
       mcp_permitidos:
         google: {url: https://google-mcp.ragnargroup.app/mcp}
+        canva: {url: https://mcp.canva.com/mcp, retorno: pegar, oauth: {cimd: false}}
 """
 
 from __future__ import annotations
@@ -64,20 +70,30 @@ def _link(app: str, permitidos: dict[str, dict[str, Any]], redirect: str, sessio
     from tools.connectors.gateway.config import operation_session_key
     from tools.connectors.mcp import _LATE_ATTEMPTS
 
-    cfg = {"url": permitidos[app]["url"], "auth": "oauth", "oauth": {"redirect_uri": redirect}}
+    entrada = permitidos[app]
+    pegar = str(entrada.get("retorno") or "").strip().lower() == "pegar"
+    oauth = {k: v for k, v in dict(entrada.get("oauth") or {}).items() if k != "redirect_uri"}
+    if not pegar:
+        oauth["redirect_uri"] = redirect
+    cfg = {"url": entrada["url"], "auth": "oauth", "oauth": oauth}
     attempt = mcp_oauth.start(app, cfg=cfg)
     if not attempt.auth_url:
         return json.dumps({"app": app, "conectada": True})
     _LATE_ATTEMPTS.setdefault((hermes_home_key(), operation_session_key(session_id)), {})[app] = attempt
-    return json.dumps({
-        "app": app,
-        "link": attempt.auth_url,
-        "instrucciones": (
+    if pegar:
+        instrucciones = (
+            "Manda este link al usuario. Al aprobar, su navegador va a intentar abrir una direccion que "
+            "empieza con http://127.0.0.1 y va a mostrar un error de conexion: es normal. Pidele que "
+            "copie esa direccion completa de la barra del navegador y te la pegue en este chat; "
+            "cuando llegue, llama a conectar_app con accion 'completar' y esa URL. El link vence en 5 minutos."
+        )
+    else:
+        instrucciones = (
             "Manda este link al usuario. Al aprobar, la pagina de Ragnar le muestra un boton para "
             "devolverte la conexion por este chat; cuando llegue ese mensaje, llama a conectar_app "
             "con accion 'completar' y la URL recibida. El link vence en 5 minutos."
-        ),
-    })
+        )
+    return json.dumps({"app": app, "link": attempt.auth_url, "instrucciones": instrucciones})
 
 
 def _completar(url: str) -> str:
@@ -116,7 +132,7 @@ def conectar_app(args: dict[str, Any], *, session_id: Optional[str] = None) -> s
     app = str(args.get("app") or "").strip().lower()
     if app not in permitidos:
         return tool_error(f"'{app}' no esta permitida. Apps disponibles: {', '.join(sorted(permitidos)) or 'ninguna'}.")
-    if not redirect:
+    if not redirect and str(permitidos[app].get("retorno") or "").strip().lower() != "pegar":
         return tool_error("Falta pantera.oauth_redirect_uri (https) en la configuracion.")
     try:
         return _link(app, permitidos, redirect, session_id)

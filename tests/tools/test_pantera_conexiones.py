@@ -101,3 +101,35 @@ def test_completar_accepts_the_full_relay_url(monkeypatch, active):
     assert flow.delivered[0] == "abc"
 
     assert "no corresponde" in pc.conectar_app({"accion": "completar", "url": "https://r/conectar/?code=x&state=nada"})
+
+
+def test_paste_back_app_keeps_the_loopback_redirect_and_its_oauth_options(monkeypatch):
+    from tools.connectors import mcp
+
+    permitidos = {"canva": {"url": "https://mcp.canva.com/mcp", "retorno": "pegar",
+                            "oauth": {"cimd": False, "redirect_uri": "https://no-se-usa/"}}}
+    monkeypatch.setattr(pc, "_pantera_config", lambda: (permitidos, ""))
+    monkeypatch.setattr(mcp, "_LATE_ATTEMPTS", {})
+    vistos = {}
+
+    def falso_start(nombre, cfg=None, **_):
+        vistos["cfg"] = cfg
+        return SimpleNamespace(auth_url="https://www.canva.com/api/oauth/authorize?x=1", flow=None)
+
+    monkeypatch.setattr(mcp_oauth, "start", falso_start)
+    salida = json.loads(pc.conectar_app({"accion": "link", "app": "canva"}, session_id="s1"))
+
+    assert vistos["cfg"] == {"url": "https://mcp.canva.com/mcp", "auth": "oauth", "oauth": {"cimd": False}}
+    assert "127.0.0.1" in salida["instrucciones"]
+
+
+def test_completar_accepts_a_pasted_loopback_address(monkeypatch, active):
+    flow = _FakeFlow("st-canva")
+    monkeypatch.setattr(pc, "_hermes_home", lambda: "/home/a")
+    monkeypatch.setattr(pc, "_pantera_config", lambda: ({}, ""))
+    active[("/home/a", "canva")] = flow
+
+    salida = json.loads(pc.conectar_app({"accion": "completar",
+                                         "url": "http://127.0.0.1:41234/callback?code=k9&state=st-canva"}))
+    assert salida["conectada"] is True
+    assert flow.delivered[0] == "k9"
