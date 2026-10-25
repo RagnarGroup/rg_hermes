@@ -387,6 +387,7 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
         self._mention_patterns = self._compile_mention_patterns()
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._bridge_log_fh = self._bridge_log = self._poll_task = self._http_session = None
+        self._bridge_allow_from: Optional[list[str]] = None  # DM allowlist the bridge last received
         # Set by disconnect() before SIGTERMing so _check_managed_bridge_exit() can tell an intentional exit (-15/-2/0) from a crash.
         self._shutting_down = False
         # Text debounce batching: rapid bursts (forwards, paste-splits) would otherwise each trigger a separate agent turn.
@@ -457,6 +458,8 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
         import aiohttp
         self._bridge_process = managed_process
         self._http_session = aiohttp.ClientSession()
+        # An adopted or respawned bridge holds whatever list it started with; resync on the first poll.
+        self._bridge_allow_from = None
         self._poll_task = asyncio.create_task(self._poll_messages())
 
     async def _reuse_running_bridge(self, bridge_path: Path) -> bool:
@@ -918,6 +921,7 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
             if not self._http_session or await self._report_bridge_exit():
                 break
             try:
+                await self._sync_bridge_allowlist()
                 async with self._bridge_req("get", "messages", 30) as resp:
                     if resp.status == 200:
                         for msg_data in await resp.json():
@@ -937,6 +941,18 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
                 print(f"[{self.name}] Poll error: {e}")
                 await asyncio.sleep(5)
             await asyncio.sleep(1)  # Poll interval
+
+    async def _sync_bridge_allowlist(self) -> None:
+        """bridge.js gates DMs before Python sees them, so pairing approve/revoke and ``/reload`` must reach
+        it too: push the live DM allowlist whenever it differs from what the bridge last received."""
+        live = sorted(self._live_dm_allow_from())
+        if live == self._bridge_allow_from:
+            return
+        async with self._bridge_req("post", "allowlist", 5, json={"allowedUsers": live}) as resp:
+            if resp.status != 200:
+                logger.warning("[%s] WhatsApp bridge rejected the allowlist update (HTTP %s)", self.name, resp.status)
+        # Recorded even on rejection so a bridge without the endpoint is not hammered every poll.
+        self._bridge_allow_from = live
 
     async def _send_read_receipt(self, data: dict[str, Any]) -> None:
         key = data.get("readReceiptKey")

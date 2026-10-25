@@ -30,7 +30,7 @@ import { randomBytes, createHash } from 'crypto';
 import { execFileSync } from 'child_process';
 import { tmpdir } from 'os';
 import qrcode from 'qrcode-terminal';
-import { matchesAllowedSender, matchesAllowedUser, matchesInboundWhatsAppGroup, parseAllowedUsers } from './allowlist.js';
+import { matchesAllowedSender, matchesAllowedUser, matchesInboundWhatsAppGroup, parseAllowedUsers, replaceAllowedUsers } from './allowlist.js';
 import { createOutboundIdTracker } from './outbound_ids.js';
 import { classifyOwnerMessageGate } from './owner_message_gate.js';
 import {
@@ -1122,6 +1122,18 @@ app.get('/chat/:id', async (req, res) => {
     isGroup,
     participants: [],
   });
+});
+
+// The DM gate above runs before Python sees a message, so the adapter pushes
+// its live allowlist here (pairing approve/revoke, /reload); a spawn-time
+// snapshot would keep dropping approved users and forwarding revoked ones.
+app.post('/allowlist', (req, res) => {
+  try {
+    replaceAllowedUsers(ALLOWED_USERS, req.body?.allowedUsers);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  return res.json({ success: true, allowedUsers: ALLOWED_USERS.size });
 });
 
 // Health check

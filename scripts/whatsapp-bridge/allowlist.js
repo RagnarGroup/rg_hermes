@@ -18,6 +18,20 @@ export function parseAllowedUsers(rawValue) {
   );
 }
 
+// Swaps the contents in place so every closure holding the Set sees the new
+// list; a malformed payload throws before anything is cleared.
+export function replaceAllowedUsers(allowedUsers, entries) {
+  if (!Array.isArray(entries) || !entries.every((entry) => typeof entry === 'string')) {
+    throw new TypeError('allowedUsers must be an array of strings');
+  }
+  const next = parseAllowedUsers(entries.join(','));
+  allowedUsers.clear();
+  for (const id of next) {
+    allowedUsers.add(id);
+  }
+  return allowedUsers;
+}
+
 function readMappingFile(sessionDir, identifier, suffix = '') {
   const filePath = path.join(sessionDir, `lid-mapping-${identifier}${suffix}.json`);
   if (!existsSync(filePath)) {

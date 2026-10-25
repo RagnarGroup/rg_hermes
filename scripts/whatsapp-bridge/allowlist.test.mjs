@@ -11,6 +11,7 @@ import {
   matchesAllowedUser,
   normalizeWhatsAppIdentifier,
   parseAllowedUsers,
+  replaceAllowedUsers,
 } from './allowlist.js';
 
 test('normalizeWhatsAppIdentifier strips jid syntax and plus prefix', () => {
@@ -121,4 +122,24 @@ test('matchesAllowedUser rejects everyone when allowlist is empty (#8389)', () =
   } finally {
     rmSync(sessionDir, { recursive: true, force: true });
   }
+});
+
+test('replaceAllowedUsers swaps the live set in place so existing holders see the new list', () => {
+  const allowed = parseAllowedUsers('19175395595');
+  const sameReference = allowed;
+
+  replaceAllowedUsers(allowed, ['+15551234567@s.whatsapp.net', '267383306489914@lid']);
+
+  assert.equal(sameReference, allowed);
+  assert.deepEqual([...allowed].sort(), ['15551234567', '267383306489914']);
+  assert.equal(matchesAllowedUser('19175395595@s.whatsapp.net', allowed, os.tmpdir()), false);
+  assert.equal(matchesAllowedUser('15551234567@s.whatsapp.net', allowed, os.tmpdir()), true);
+});
+
+test('replaceAllowedUsers rejects a malformed payload without clearing the current list', () => {
+  const allowed = parseAllowedUsers('19175395595');
+
+  assert.throws(() => replaceAllowedUsers(allowed, '15551234567'), TypeError);
+  assert.throws(() => replaceAllowedUsers(allowed, [15551234567]), TypeError);
+  assert.deepEqual([...allowed], ['19175395595']);
 });
