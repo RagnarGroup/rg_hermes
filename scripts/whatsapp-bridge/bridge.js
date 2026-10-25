@@ -30,7 +30,7 @@ import { randomBytes, createHash } from 'crypto';
 import { execFileSync } from 'child_process';
 import { tmpdir } from 'os';
 import qrcode from 'qrcode-terminal';
-import { matchesAllowedSender, matchesAllowedUser, matchesInboundWhatsAppGroup, parseAllowedUsers, replaceAllowedUsers } from './allowlist.js';
+import { matchesAllowedSender, matchesAllowedUser, matchesInboundWhatsAppGroup, parseAllowedUsers, phoneJidsForLidLookup, replaceAllowedUsers } from './allowlist.js';
 import { createOutboundIdTracker } from './outbound_ids.js';
 import { classifyOwnerMessageGate } from './owner_message_gate.js';
 import {
@@ -458,6 +458,9 @@ async function startSocket() {
       emitPairEvent({ event: 'connected', user: connectedUser });
       if (!PAIR_JSON) {
         console.log('✅ WhatsApp connected!');
+      }
+      if (!PAIR_ONLY) {
+        resolveAllowlistLids();
       }
       if (PAIR_ONLY) {
         if (!PAIR_JSON) {
@@ -1133,8 +1136,27 @@ app.post('/allowlist', (req, res) => {
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
+  resolveAllowlistLids();
   return res.json({ success: true, allowedUsers: ALLOWED_USERS.size });
 });
+
+// A sender can arrive as a bare LID with no phone alias and no lid-mapping file
+// yet, so a phone-number allowlist entry would never match it. Asking Baileys
+// for each allowlisted phone's LID (cache → key store → USync) persists the
+// lid-mapping files that both this gate and the Python adapter read.
+async function resolveAllowlistLids() {
+  const lidMapping = sock?.signalRepository?.lidMapping;
+  const jids = phoneJidsForLidLookup(ALLOWED_USERS);
+  if (!lidMapping || connectionState !== 'connected' || jids.length === 0) {
+    return;
+  }
+  try {
+    const pairs = await lidMapping.getLIDsForPNs(jids);
+    console.log(`🔗 Allowlist LID lookup: ${pairs?.length ?? 0} of ${jids.length} resolved`);
+  } catch (err) {
+    console.warn('[bridge] Allowlist LID lookup failed:', err.message);
+  }
+}
 
 // Health check
 app.get('/health', (req, res) => {

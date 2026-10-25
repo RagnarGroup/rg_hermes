@@ -18,6 +18,14 @@ export function parseAllowedUsers(rawValue) {
   );
 }
 
+// Phone-number JIDs to resolve to LIDs. A LID passed as a phone simply resolves
+// to nothing, so every all-digit entry is included.
+export function phoneJidsForLidLookup(allowedUsers) {
+  return [...allowedUsers]
+    .filter((id) => /^\d{6,15}$/.test(id))
+    .map((id) => `${id}@s.whatsapp.net`);
+}
+
 // Swaps the contents in place so every closure holding the Set sees the new
 // list; a malformed payload throws before anything is cleared.
 export function replaceAllowedUsers(allowedUsers, entries) {

@@ -11,6 +11,7 @@ import {
   matchesAllowedUser,
   normalizeWhatsAppIdentifier,
   parseAllowedUsers,
+  phoneJidsForLidLookup,
   replaceAllowedUsers,
 } from './allowlist.js';
 
@@ -142,4 +143,14 @@ test('replaceAllowedUsers rejects a malformed payload without clearing the curre
   assert.throws(() => replaceAllowedUsers(allowed, '15551234567'), TypeError);
   assert.throws(() => replaceAllowedUsers(allowed, [15551234567]), TypeError);
   assert.deepEqual([...allowed], ['19175395595']);
+});
+
+test('phoneJidsForLidLookup asks only for all-digit entries, as phone JIDs', () => {
+  const allowed = parseAllowedUsers('51914101182,166653958615179@lid,*,abc');
+
+  assert.deepEqual(phoneJidsForLidLookup(allowed).sort(), [
+    '166653958615179@s.whatsapp.net',
+    '51914101182@s.whatsapp.net',
+  ]);
+  assert.deepEqual(phoneJidsForLidLookup(new Set()), []);
 });
